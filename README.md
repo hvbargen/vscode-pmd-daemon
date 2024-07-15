@@ -51,6 +51,33 @@ To stop the program, hit `Ctrl-C` on Windows.
 
     java -cp pmd-core*.jar pmd-plsql*.jar -jar vscode-pmd-daemon.jar -Dlog4j.configuration=file:log4j.properties --language plsql --ruleset category/plsql/bestpractices.xml --source c:\my_workspace\ddl
 
+## Output format
+
+The program emits the following text lines while working.
+The first word in each line can be used to detect the type of the line.
+
+At program startup:
+
+    STARTUP message
+    
+At the beginning of the examination a new or changed file:
+
+    BEGIN-ANALYSIS filename
+
+For each rule violation in the file:
+
+    MSG begin-line:begin-column to end-line:end-column severity [rule-name] violation description
+
+At the end of the examination of a new or changed file:
+
+    END-ANALYSIS filename
+
+At program shutdown:
+
+    SHUTDOWN
+    
+    
+
 ## Logging
 
 By creating a file `log4j.properties`, one can debug what happens.
