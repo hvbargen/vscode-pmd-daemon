@@ -16,7 +16,10 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.ArrayList;
 import java.util.List;
-// import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import net.sourceforge.pmd.PMDConfiguration;
 import net.sourceforge.pmd.PmdAnalysis;
@@ -36,9 +39,93 @@ class DirWatcherPMD {
     List<Path> sources = new ArrayList<Path>();
     List<FileId> filesWithViolations = new ArrayList<FileId>();
 
+    /**
+     * We use this variable to count changes in the watched directories.
+     * Whenever a change occurs, this variable is incremented.
+     * The runPMD() method checks this variable. Analysis only starts
+     * when the variable has not further incremented within a delay of 0.2 seconds.
+     * If the variable is incremented WHILE the analysis is running, then
+     * it starts anew.
+     * To achieve this behavior, the directory sets an Event if there are changes
+     * and the Event is not already set.
+     * The second program thread waits for this Event.
+     * Once it is notified about this event, it reads changeCounter and stores
+     * this value in a comparison variable, then resets the Event.
+     * Then it waits for a fraction of second.
+     * After this delay, it reads changeCounter again and compares this to the
+     * previously stored value.
+     * If the values are equal, then it means there have not been any changes,
+     * so the analysis should be valid. It then starts the analysis.
+     * Otherwise, the analysis will probably invalid, thus it is delayed further.
+     */
+    private volatile int changeCounter = 0;
+
+    // Java equivalent to Python Event class,
+    // see https://stackoverflow.com/questions/1040818/python-event-equivalent-in-java
+    // However, we use an IF instead of WHILE in doWait with timeout.
+    private static class Event {
+        Lock lock = new ReentrantLock();
+        Condition cond = lock.newCondition();
+        boolean flag;
+
+        public void doWait() throws InterruptedException {
+            lock.lock();
+            try {
+                while (!flag) {
+                    cond.await();
+                }
+            } finally {
+                lock.unlock();
+            }
+        }
+        public void doWait(int milliseconds) throws InterruptedException {
+            lock.lock();
+            try {
+                if (!flag) {
+                    cond.await(milliseconds, TimeUnit.MILLISECONDS);
+                }
+
+
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public boolean isSet() {
+            lock.lock();
+            try {
+                return flag;
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public void set() {
+            lock.lock();
+            try {
+                flag = true;
+                cond.signalAll();
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public void clear() {
+            lock.lock();
+            try {
+                flag = false;
+                cond.signalAll();
+            } finally {
+                lock.unlock();
+            }
+        }
+    }    
+
     private static enum ArgMode {
         None, language, ruleset, source
     }
+
+    Event event = new Event();
 
     DirWatcherPMD(final String[] args) {
         // Parse args
@@ -113,8 +200,6 @@ class DirWatcherPMD {
             ioe.printStackTrace();
         }
 
-        System.out.println("Watching path: " + path);
-
         // We obtain the file system of the Path
         FileSystem fs = path.getFileSystem();
 
@@ -141,17 +226,17 @@ class DirWatcherPMD {
                         // A new Path was created
                         Path newPath = cast(watchEvent).context();
                         // Output
-                        System.out.println("New path created: " + newPath);
+                        System.out.println("DBG New path created: " + newPath);
                         // This does not work recursively:
                         // newPath.register(service, ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE);
                     } else if (ENTRY_MODIFY == kind) {
                         // modified
                         Path newPath = cast(watchEvent).context();
                         // Output
-                        System.out.println("New path modified: " + newPath);
+                        System.out.println("DBG New path modified: " + newPath);
                     } else if (ENTRY_DELETE == kind) {
                         Path deletedPath = cast(watchEvent).context();
-                        System.out.println("New path deleted: " + deletedPath);
+                        System.out.println("DBG New path deleted: " + deletedPath);
                     }
                 }
 
@@ -159,7 +244,8 @@ class DirWatcherPMD {
                     break; // loop
                 }
 
-                runPMD();
+                // Notify the PMD thread
+                event.set();
             }
 
         } catch (IOException ioe) {
@@ -168,6 +254,41 @@ class DirWatcherPMD {
             ie.printStackTrace();
         }
 
+    }
+
+    // This runs as a background thread
+    private void pmdInBackground()  {
+        try {
+            int lastCounter = 0;
+            while (true) {
+                // Wait for an event
+                event.doWait();
+                int counter = changeCounter;
+                event.clear();
+                while (true) {
+                    try {
+                        event.doWait(200);
+                        if (!event.isSet()) {
+                            break;
+                        }
+                        // A new event while we waited, so keep on waiting
+                        counter = changeCounter;
+                        event.clear();
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+                // immerhin bis jetzt unverändert.
+                lastCounter = counter;
+                runPMD();
+                if (lastCounter != counter) {
+                    // Es hat in der Zwischenzeit Veränderungen gegeben.
+                    event.set();
+                }
+            }
+        } catch (InterruptedException e) {
+            System.out.println("INFO Background thread interrupted.");
+        }
     }
 
     private void runPMD() {
@@ -206,39 +327,14 @@ class DirWatcherPMD {
         }
     }
 
-    // void runRepeated() {
-
-    //     PMDConfiguration config = configure();
-    //     System.out.println("Press Enter to check source files, 'stop' to stop.");
-    //     try (Scanner scanner = new Scanner(System.in)) {
-    //         boolean stop = false;
-    //         while (!stop) {
-    //             String userInput = scanner.nextLine();
-    //             if (userInput.equals("stop")) {
-    //                 stop = true;
-    //             } else {
-    //                 try (PmdAnalysis pmd = PmdAnalysis.create(config)) {
-    //                     // System.out.println("Files: " + pmd.files());
-    //                     Report report = pmd.performAnalysisAndCollectReport();
-    //                     System.out.println("Violations:");
-    //                     for (var violation : report.getViolations()) {
-    //                         System.out.println(
-    //                                 violation.getLocation().startPosToStringWithFile() + " bis " + violation.getEndLine()
-    //                                         + ":" + violation.getEndColumn() + " [" + violation.getRule().getName() + "]"
-    //                                         + " " + violation.getRule().getPriority() + ": " + violation.getDescription());
-    //                     }
-    //                     System.out.println("End of report.");
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
+    
     public static void main(final String[] args) {
-        //       new DirWatcherPMD(args).runRepeated();
         var watcher = new DirWatcherPMD(args);
         System.out.println("STARTUP Watching directories: " + watcher.sources.toString());
         watcher.runPMD();
+        Thread background = new Thread(() -> { watcher.pmdInBackground(); } );
+        background.setDaemon(true);
+        background.start();
         watcher.watch();
         System.out.println("SHUTDOWN Thanks for using this program.");
     }
