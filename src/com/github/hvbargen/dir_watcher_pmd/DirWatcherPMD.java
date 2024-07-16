@@ -21,6 +21,7 @@ import java.util.List;
 import net.sourceforge.pmd.PMDConfiguration;
 import net.sourceforge.pmd.PmdAnalysis;
 import net.sourceforge.pmd.lang.LanguageRegistry;
+import net.sourceforge.pmd.lang.document.FileId;
 import net.sourceforge.pmd.reporting.Report;
 
 class DirWatcherPMD {
@@ -33,6 +34,7 @@ class DirWatcherPMD {
     List<String> languages = new ArrayList<String>();
     List<String> rulesets = new ArrayList<String>();
     List<Path> sources = new ArrayList<Path>();
+    List<FileId> filesWithViolations = new ArrayList<FileId>();
 
     private static enum ArgMode {
         None, language, ruleset, source
@@ -157,20 +159,7 @@ class DirWatcherPMD {
                     break; // loop
                 }
 
-                PMDConfiguration config = configure();
-                try (PmdAnalysis pmd = PmdAnalysis.create(config)) {
-                    // System.out.println("Files: " + pmd.files());
-                    Report report = pmd.performAnalysisAndCollectReport();
-                    System.out.println("Violations:");
-                    for (var violation : report.getViolations()) {
-                        System.out.println(
-                                violation.getLocation().startPosToStringWithFile() + " bis " + violation.getEndLine()
-                                        + ":" + violation.getEndColumn() + " [" + violation.getRule().getName() + "]"
-                                        + " " + violation.getRule().getPriority() + ": " + violation.getDescription());
-                    }
-                    System.out.println("End of report.");
-                }
-
+                runPMD();
             }
 
         } catch (IOException ioe) {
@@ -179,6 +168,42 @@ class DirWatcherPMD {
             ie.printStackTrace();
         }
 
+    }
+
+    private void runPMD() {
+
+        List<FileId> newFilesWithViolations = new ArrayList<FileId>();
+        PMDConfiguration config = configure();
+        try (PmdAnalysis pmd = PmdAnalysis.create(config)) {
+            // System.out.println("Files: " + pmd.files());
+            Report report = pmd.performAnalysisAndCollectReport();
+            FileId oldFileId = null;
+            for (var violation : report.getViolations()) {
+                if (!violation.getFileId().equals(oldFileId)) {
+                    if (oldFileId != null) {
+                        System.out.println("END-ANALYSIS " + oldFileId.getOriginalPath());
+                    }
+                    oldFileId = violation.getFileId();
+                    newFilesWithViolations.add(violation.getFileId());
+                    System.out.println("BEGIN-ANALYSIS " + oldFileId.getOriginalPath());
+                }
+                System.out.println("MSG " +
+                        violation.getBeginLine() + ":" + violation.getBeginColumn() +
+                        " to " + violation.getEndLine() + ":" + violation.getEndColumn() +
+                        " " + violation.getRule().getPriority() +
+                        " [" + violation.getRule().getName() + "] " + violation.getDescription());
+                if (oldFileId != null) {
+                    System.out.println("END-ANALYSIS " + oldFileId.getOriginalPath());
+                }
+            }
+            for (FileId fid: filesWithViolations) {
+                if (!newFilesWithViolations.contains(fid)) {
+                    System.out.println("END-ANALYSIS " + fid.getOriginalPath());
+                    System.out.println("END-ANALYSIS " + fid.getOriginalPath());
+                }
+            }
+            filesWithViolations = newFilesWithViolations; 
+        }
     }
 
     // void runRepeated() {
@@ -211,6 +236,10 @@ class DirWatcherPMD {
 
     public static void main(final String[] args) {
         //       new DirWatcherPMD(args).runRepeated();
-        new DirWatcherPMD(args).watch();
+        var watcher = new DirWatcherPMD(args);
+        System.out.println("STARTUP Watching directories: " + watcher.sources.toString());
+        watcher.runPMD();
+        watcher.watch();
+        System.out.println("SHUTDOWN Thanks for using this program.");
     }
 }
