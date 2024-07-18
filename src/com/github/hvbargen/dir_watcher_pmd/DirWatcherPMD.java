@@ -302,11 +302,12 @@ class DirWatcherPMD {
             for (var violation : report.getViolations()) {
                 if (!violation.getFileId().equals(oldFileId)) {
                     if (oldFileId != null) {
-                        System.out.println("END-ANALYSIS " + oldFileId.getOriginalPath());
+                        System.out.println("END-ANALYSIS");
                     }
                     oldFileId = violation.getFileId();
                     newFilesWithViolations.add(violation.getFileId());
-                    System.out.println("BEGIN-ANALYSIS " + oldFileId.getOriginalPath());
+                    System.out.println("BEGIN-ANALYSIS");
+                    System.out.println("Findings in " + oldFileId.getOriginalPath() + ":");
                 }
                 System.out.println("MSG " +
                         violation.getBeginLine() + ":" + violation.getBeginColumn() +
@@ -314,13 +315,14 @@ class DirWatcherPMD {
                         " " + violation.getRule().getPriority() +
                         " [" + violation.getRule().getName() + "] " + violation.getDescription());
                 if (oldFileId != null) {
-                    System.out.println("END-ANALYSIS " + oldFileId.getOriginalPath());
+                    System.out.println("END-ANALYSIS");
                 }
             }
             for (FileId fid: filesWithViolations) {
                 if (!newFilesWithViolations.contains(fid)) {
-                    System.out.println("END-ANALYSIS " + fid.getOriginalPath());
-                    System.out.println("END-ANALYSIS " + fid.getOriginalPath());
+                    System.out.println("BEGIN-ANALYSIS");
+                    System.out.println("Findings in " + fid.getOriginalPath() + ":");
+                    System.out.println("END-ANALYSIS");
                 }
             }
             filesWithViolations = newFilesWithViolations; 

@@ -62,7 +62,8 @@ At program startup:
     
 At the beginning of the examination a new or changed file:
 
-    BEGIN-ANALYSIS filename
+    BEGIN-ANALYSIS
+    Findings in filename:
 
 For each rule violation in the file:
 
@@ -70,7 +71,7 @@ For each rule violation in the file:
 
 At the end of the examination of a new or changed file:
 
-    END-ANALYSIS filename
+    END-ANALYSIS
 
 At program shutdown:
 
