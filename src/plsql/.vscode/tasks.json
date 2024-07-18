@@ -1,0 +1,51 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "pmd-watch",
+            "command": "D:\\prog\\jdk-17.0.8.101-hotspot\\bin\\java.exe",
+            "args": [
+                "-Dlog4j.configuration=file:D:\\git-repos\\hvbargen\\vscode-pmd-daemon\\log4j.properties",
+                "-jar",
+                "D:\\git-repos\\hvbargen\\vscode-pmd-daemon\\target\\main-1.0-SNAPSHOT.jar",
+                "--language",
+                "plsql",
+                "--source",
+                "beispiel",
+                "--ruleset",
+                "category/plsql/bestpractices.xml"
+            ],
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "pmd",
+                "fileLocation": "relative",
+                "pattern": [
+                    {
+                        "regexp": "^Findings in (.*):$",
+                        "file": 1
+                    },
+                    {
+                        "regexp": "^MSG ^(\\d+):(\\d+) to (\\d+):(\\d+) ([A-Za-z]+) \\[(A-Za-z_ ]+)\\]\\s+(.*)$",
+                        "line": 1,
+                        "column": 2,
+                        "endLine": 3,
+                        "endColumn": 4,
+                        "severity": 5,
+                        "code": 6,
+                        "message": 7,
+                        "loop": true
+                    }
+                ],
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^BEGIN-ANALYSIS",
+                    "endsPattern": "^END-ANALYSIS"
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
