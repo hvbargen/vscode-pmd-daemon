@@ -18,14 +18,17 @@
             "isBackground": true,
             "problemMatcher": {
                 "owner": "pmd",
-                "fileLocation": "relative",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
                 "pattern": [
                     {
                         "regexp": "^Findings in (.*):$",
                         "file": 1
                     },
                     {
-                        "regexp": "^MSG ^(\\d+):(\\d+) to (\\d+):(\\d+) ([A-Za-z]+) \\[(A-Za-z_ ]+)\\]\\s+(.*)$",
+                        "regexp": "^MSG (\\d+):(\\d+) to (\\d+):(\\d+) ([A-Za-z]+) \\[([A-Za-z_ ]+)\\]\\s+(.*)$",
                         "line": 1,
                         "column": 2,
                         "endLine": 3,
@@ -37,10 +40,13 @@
                     }
                 ],
                 "background": {
-                    "activeOnStart": true,
+                    "activeOnStart": false,
                     "beginsPattern": "^BEGIN-ANALYSIS",
                     "endsPattern": "^END-ANALYSIS"
                 }
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
             },
             "group": {
                 "kind": "build",
