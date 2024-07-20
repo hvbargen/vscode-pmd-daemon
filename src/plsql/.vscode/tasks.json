@@ -25,7 +25,7 @@
                 "pattern": [
                     {
                         "regexp": "^Findings in (.*):$",
-                        "file": 1
+                        "file": 1,
                     },
                     {
                         "regexp": "^MSG (\\d+):(\\d+) to (\\d+):(\\d+) ([A-Za-z]+) \\[([A-Za-z_ ]+)\\]\\s+(.*)$",
@@ -41,8 +41,8 @@
                 ],
                 "background": {
                     "activeOnStart": false,
-                    "beginsPattern": "^BEGIN-ANALYSIS",
-                    "endsPattern": "^END-ANALYSIS"
+                    "beginsPattern": "^BEGIN-SCAN",
+                    "endsPattern": "^END-SCAN"
                 }
             },
             "runOptions": {

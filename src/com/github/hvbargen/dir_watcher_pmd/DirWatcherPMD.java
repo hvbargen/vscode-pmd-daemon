@@ -25,6 +25,7 @@ import net.sourceforge.pmd.PMDConfiguration;
 import net.sourceforge.pmd.PmdAnalysis;
 import net.sourceforge.pmd.lang.LanguageRegistry;
 import net.sourceforge.pmd.lang.document.FileId;
+import net.sourceforge.pmd.lang.rule.RulePriority;
 import net.sourceforge.pmd.reporting.Report;
 
 class DirWatcherPMD {
@@ -291,33 +292,57 @@ class DirWatcherPMD {
         }
     }
 
+    private String mapPriority(RulePriority priority) {
+        final String ret;
+        switch(priority) {
+        case HIGH:
+            ret = "FATAL";
+            break;
+        case MEDIUM_HIGH:
+            ret = "ERROR";
+            break;
+        case MEDIUM:
+            ret = "WARNING";
+            break;
+        case MEDIUM_LOW:
+            ret = "WARNING";
+            break;
+        case LOW:
+            ret = "INFO";
+            break;
+        default:
+            ret = "ERROR";
+        }
+        return ret;
+    }
+
     private void runPMD() {
 
         List<FileId> newFilesWithViolations = new ArrayList<FileId>();
         PMDConfiguration config = configure();
+        System.out.println("BEGIN-SCAN");
         try (PmdAnalysis pmd = PmdAnalysis.create(config)) {
-            // System.out.println("Files: " + pmd.files());
             Report report = pmd.performAnalysisAndCollectReport();
             FileId oldFileId = null;
             for (var violation : report.getViolations()) {
                 if (!violation.getFileId().equals(oldFileId)) {
-                    if (oldFileId != null) {
-                        System.out.println("END-ANALYSIS");
-                    }
+                    // if (oldFileId != null) {
+                    //     System.out.println("END-ANALYSIS");
+                    // }
                     oldFileId = violation.getFileId();
                     newFilesWithViolations.add(violation.getFileId());
-                    System.out.println("BEGIN-ANALYSIS");
+                    // System.out.println("BEGIN-ANALYSIS");
                     System.out.println("Findings in " + oldFileId.getOriginalPath() + ":");
                 }
                 System.out.println("MSG " +
                         violation.getBeginLine() + ":" + violation.getBeginColumn() +
                         " to " + violation.getEndLine() + ":" + violation.getEndColumn() +
-                        " " + violation.getRule().getPriority() +
+                        " " + mapPriority(violation.getRule().getPriority()) +
                         " [" + violation.getRule().getName() + "] " + violation.getDescription());
-                if (oldFileId != null) {
-                    System.out.println("END-ANALYSIS");
-                }
             }
+            // if (oldFileId != null) {
+            //     System.out.println("END-ANALYSIS");
+            // }
             for (FileId fid: filesWithViolations) {
                 if (!newFilesWithViolations.contains(fid)) {
                     System.out.println("BEGIN-ANALYSIS");
@@ -326,6 +351,9 @@ class DirWatcherPMD {
                 }
             }
             filesWithViolations = newFilesWithViolations; 
+        }
+        finally {
+            System.out.println("END-SCAN");
         }
     }
 

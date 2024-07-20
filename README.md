@@ -59,19 +59,22 @@ The first word in each line can be used to detect the type of the line.
 At program startup:
 
     STARTUP message
+
+At beginning of scan:
+
+    BEGIN-SCAN
     
 At the beginning of the examination a new or changed file:
 
-    BEGIN-ANALYSIS
     Findings in filename:
 
 For each rule violation in the file:
 
     MSG begin-line:begin-column to end-line:end-column severity [rule-name] violation description
 
-At the end of the examination of a new or changed file:
+At the end of scan:
 
-    END-ANALYSIS
+    END-SCAN
 
 At program shutdown:
 
