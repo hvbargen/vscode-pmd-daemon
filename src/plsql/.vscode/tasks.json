@@ -3,9 +3,9 @@
     "tasks": [
         {
             "label": "pmd-watch",
-            "command": "D:\\prog\\jdk-17.0.8.101-hotspot\\bin\\java.exe",
+            "command": "${config:java.jdt.ls.java.home}/bin/java.exe",
             "args": [
-                "-Dlog4j.configuration=file:D:\\git-repos\\hvbargen\\vscode-pmd-daemon\\log4j.properties",
+                "-Dlog4j.configuration=file:${workspaceFolder}/.vscode/pmd-log4j.properties",
                 "-jar",
                 "D:\\git-repos\\hvbargen\\vscode-pmd-daemon\\target\\main-1.0-SNAPSHOT.jar",
                 "--language",
