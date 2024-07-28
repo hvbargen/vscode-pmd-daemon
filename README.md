@@ -40,10 +40,18 @@ One or more ruleset paths must be specified.
 The sources can be files or directories.
 Directories are NOT scanned recursively.
 
-Additional options that may be added later:
+Additional options:
 
-    --excludelist textfile   A text file containing filename patterns which shuld be ignored
-    --includelist textfile   A text file containing filename patterns which should be considered.
+    --exclude pattern ...   glob patterns of file names to be excluded from analysis.
+    --include pattern ...   glob patterns of file names to be included.
+
+A file is only considedered if it does not match any of the exclude patterns
+and if it matches one of the include patterns.
+
+If you omit the exclude and include patterns, the program uses the following defaults:
+
+   -- exclude ".*" "*.log"
+   -- include "*.{sql,pkb,pks,pck,vw,typ,fnc,prc}"
       
 To stop the program, hit `Ctrl-C` on Windows.
 
