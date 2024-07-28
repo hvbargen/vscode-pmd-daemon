@@ -20,12 +20,12 @@
     <dependency>
       <groupId>net.sourceforge.pmd</groupId>
       <artifactId>pmd-core</artifactId>
-      <version>7.3.0</version>
+      <version>7.4.0</version>
     </dependency>
     <dependency>
       <groupId>net.sourceforge.pmd</groupId>
       <artifactId>pmd-plsql</artifactId>
-      <version>7.3.0</version>
+      <version>7.4.0</version>
     </dependency>
 
     <!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-reload4j -->
