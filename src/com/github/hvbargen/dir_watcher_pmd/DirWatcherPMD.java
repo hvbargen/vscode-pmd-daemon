@@ -8,8 +8,10 @@ import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
 import java.io.IOException;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchKey;
@@ -39,7 +41,9 @@ class DirWatcherPMD {
     List<String> rulesets = new ArrayList<String>();
     List<Path> sources = new ArrayList<Path>();
     List<FileId> filesWithViolations = new ArrayList<FileId>();
+    List<String> excludes = null;
 
+    List<PathMatcher> excludeMatchers = null;
     /**
      * We use this variable to count changes in the watched directories.
      * Whenever a change occurs, this variable is incremented.
@@ -123,7 +127,7 @@ class DirWatcherPMD {
     }    
 
     private static enum ArgMode {
-        None, language, ruleset, source
+        None, language, ruleset, source, exclude
     }
 
     Event event = new Event();
@@ -149,6 +153,11 @@ class DirWatcherPMD {
                 case source:
                     sources.add(Path.of(arg));
                     break;
+                case exclude:
+                    if (excludes == null) {
+                        excludes = new ArrayList<String>();
+                    }
+                    excludes.add(arg);
                 }
             }
         }
@@ -163,6 +172,14 @@ class DirWatcherPMD {
         if (languages.isEmpty()) {
             System.err.println("No languages specified. At least one --language must be specified.");
             System.exit(1);
+        }
+        if (excludes == null) {
+            // If ont specified on command line, use default.
+            excludes = List.of(".*", "*.log");
+        }
+        excludeMatchers = new ArrayList<PathMatcher>(excludes.size());
+        for (var pattern: excludes) {
+            excludeMatchers.add(FileSystems.getDefault().getPathMatcher("glob:" + pattern));
         }
 
     }
@@ -184,6 +201,15 @@ class DirWatcherPMD {
         // config.setReportFile(Paths.get("target/pmd-report.xml"));
         config.setAnalysisCacheLocation(".pmdcache");
         return config;
+    }
+
+    private boolean canIgnore(Path path) {
+        for (var matcher: excludeMatchers) {
+            if (matcher.matches(path)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void watch() {
@@ -215,7 +241,7 @@ class DirWatcherPMD {
             WatchKey key = null;
             while (true) {
                 key = service.take();
-
+                boolean isRelevant = false;
                 // Dequeueing events
                 Kind<?> kind = null;
                 for (WatchEvent<?> watchEvent : key.pollEvents()) {
@@ -230,11 +256,17 @@ class DirWatcherPMD {
                         System.out.println("DBG New path created: " + newPath);
                         // This does not work recursively:
                         // newPath.register(service, ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE);
+                        if (!canIgnore(newPath)) {
+                            isRelevant = true;
+                        }
                     } else if (ENTRY_MODIFY == kind) {
                         // modified
                         Path newPath = cast(watchEvent).context();
                         // Output
                         System.out.println("DBG New path modified: " + newPath);
+                        if (!canIgnore(newPath)) {
+                            isRelevant = true;
+                        }
                     } else if (ENTRY_DELETE == kind) {
                         Path deletedPath = cast(watchEvent).context();
                         System.out.println("DBG New path deleted: " + deletedPath);
@@ -246,7 +278,9 @@ class DirWatcherPMD {
                 }
 
                 // Notify the PMD thread
-                event.set();
+                if (isRelevant) {
+                    event.set();
+                }
             }
 
         } catch (IOException ioe) {
