@@ -42,8 +42,11 @@ class DirWatcherPMD {
     List<Path> sources = new ArrayList<Path>();
     List<FileId> filesWithViolations = new ArrayList<FileId>();
     List<String> excludes = null;
+    List<String> includes = null;
 
     List<PathMatcher> excludeMatchers = null;
+    List<PathMatcher> includeMatchers = null;
+
     /**
      * We use this variable to count changes in the watched directories.
      * Whenever a change occurs, this variable is incremented.
@@ -127,7 +130,7 @@ class DirWatcherPMD {
     }    
 
     private static enum ArgMode {
-        None, language, ruleset, source, exclude
+        None, language, ruleset, source, exclude, include
     }
 
     Event event = new Event();
@@ -158,6 +161,11 @@ class DirWatcherPMD {
                         excludes = new ArrayList<String>();
                     }
                     excludes.add(arg);
+                case include:
+                    if (includes == null) {
+                        includes = new ArrayList<String>();
+                    }
+                    includes.add(arg);
                 }
             }
         }
@@ -181,16 +189,20 @@ class DirWatcherPMD {
         for (var pattern: excludes) {
             excludeMatchers.add(FileSystems.getDefault().getPathMatcher("glob:" + pattern));
         }
-
+        if (includes == null) {
+            // If ont specified on command line, use default.
+            includes = List.of("*.{sql,pkb,pks,pck,vw,typ,fnc,prc}");
+        }
+        includeMatchers = new ArrayList<PathMatcher>(includes.size());
+        for (var pattern: includes) {
+            includeMatchers.add(FileSystems.getDefault().getPathMatcher("glob:" + pattern));
+        }
     }
 
     private PMDConfiguration configure() {
         PMDConfiguration config = new PMDConfiguration(LanguageRegistry.PMD);
         for (String language : languages) {
             config.setDefaultLanguageVersion(LanguageRegistry.PMD.getLanguageById(language).getDefaultVersion());
-        }
-        for (Path source : sources) {
-            config.addInputPath(source);
         }
         for (String ruleset : rulesets) {
             config.addRuleSet(ruleset);
@@ -200,16 +212,35 @@ class DirWatcherPMD {
         // config.setReportFormat("text");
         // config.setReportFile(Paths.get("target/pmd-report.xml"));
         config.setAnalysisCacheLocation(".pmdcache");
+
+        for (Path source : sources) {
+            if (source.toFile().isDirectory()) {
+                for (var file: source.toFile().listFiles()) {
+                    Path p = file.toPath();
+                    if (!canIgnore(p)) {
+                        config.addInputPath(p);
+                    } 
+                }
+            } else {
+                config.addInputPath(source);
+            }
+        }
         return config;
     }
 
     private boolean canIgnore(Path path) {
+        final Path fPath = path.getFileName();
         for (var matcher: excludeMatchers) {
-            if (matcher.matches(path)) {
+            if (matcher.matches(fPath)) {
                 return true;
             }
         }
-        return false;
+        for (var matcher: includeMatchers) {
+            if (matcher.matches(fPath)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void watch() {
