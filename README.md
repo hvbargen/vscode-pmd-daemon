@@ -3,8 +3,17 @@
 ## Current state of development
 
 This is work in progress.
+At the moment, consider it a proof of concept.
+I have only tested it at work once (for a directory witth hundreds of Oracle PL/SQL packages).
 
-**It does not yet work as described below!**
+The tool is intended for *developers* who know a little bit about Java and PMD and who develop PL/SQL.
+
+There are other, more sophisticated PMD integrations for VS Code available.
+
+However, AFAIK this is developed as one little Java program (I don't know TS good enough) and it avoids
+the process creation and Java initialization overhead.
+It uses VS Codes built-in "Task Matcher" and "Tasks" technique which allows to run any program as a 
+linter or compiler or whatever. 
 
 ## Purpose
 
@@ -87,8 +96,7 @@ At the end of scan:
 At program shutdown:
 
     SHUTDOWN
-    
-    
+       
 
 ## Logging
 
@@ -102,3 +110,23 @@ It is not tested with network directories.
 
 At the moment, the program only supports the `plsql` language,
 but this is only because it uses a shrinked binary distribution of PMD.
+
+
+## Compiling
+
+Compiling it with Maven should be straightforward.
+I don't supply binaries.
+
+## Using it with Visual Studio Code
+
+Take a look at `src\plsql`.
+Open this folder in Visual Studio Code.
+Probably you'll have to adapt some paths in the file `.vscode/tasks.json` there.
+
+Now, when you open the folder next time with VS Code, PMD will run in the background.
+It will (more or less instantly) inform you about "when others then null" findings in your PL/SQL code,
+once at start and then whenever there are changes in the directory (eg. when you edit and change a file in VS Code).
+
+Of course you can and should use your own rulesets.
+
+
